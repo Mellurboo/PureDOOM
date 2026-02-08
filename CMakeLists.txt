@@ -1,6 +1,10 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 
 project(PureDOOM)
+
+set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS ON)
 
 option(PUREDOOM_BUILD_SDL_EXAMPLE "" OFF)
 option(PUREDOOM_BUILD_TESTS "" OFF)

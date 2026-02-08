@@ -32,6 +32,11 @@
 #ifndef __DOOM_H__
 #define __DOOM_H__
 
+#define MAX_SCREENWIDTH     1920
+#define MAX_SCREENHEIGHT    1080
+
+int SCREENWIDTH = 1280;
+int SCREENHEIGHT = 720; 
 
 // Sample rate of sound samples from doom
 #define DOOM_SAMPLERATE 11025
@@ -42,7 +47,7 @@
 // Hide menu options. If for say your platform doesn't support mouse or
 // MIDI playback, you can hide these settings from the menu.
 #define DOOM_FLAG_HIDE_MOUSE_OPTIONS 1 // Remove mouse options from menu
-#define DOOM_FLAG_HIDE_SOUND_OPTIONS 2 // Remove sound options from menu
+#define DOOM_FLAG_HIDE_SOUND_OPTIONS 2 // Remove sound options from menu
 #define DOOM_FLAG_HIDE_MUSIC_OPTIONS 4 // Remove music options from menu
 
 // Darken background when menu is open, making it more readable. This
@@ -1057,8 +1062,6 @@ typedef enum
 // C++ might sucks for OOP, but it sure is a better C.
 // So there.
 // extern int SCREENWIDTH;
-#define SCREENWIDTH 320
-#define SCREENHEIGHT 200
 
 // The maximum number of players, multiplayer/networking.
 #define MAXPLAYERS 4
@@ -5334,11 +5337,11 @@ typedef struct
     byte pad1;
     // Here lies the rub for all
     //  dynamic resize/change of resolution.
-    byte top[SCREENWIDTH];
+    byte top[MAX_SCREENWIDTH];
     byte pad2;
     byte pad3;
     // See above.
-    byte bottom[SCREENWIDTH];
+    byte bottom[MAX_SCREENWIDTH];
     byte pad4;
 } visplane_t;
 
@@ -6119,7 +6122,7 @@ extern player_t* viewplayer;
 extern angle_t clipangle;
 
 extern int viewangletox[FINEANGLES / 2];
-extern angle_t xtoviewangle[SCREENWIDTH + 1];
+extern angle_t xtoviewangle[MAX_SCREENWIDTH + 1];
 
 extern fixed_t rw_distance;
 extern angle_t rw_normalangle;
@@ -6285,11 +6288,11 @@ typedef void (*planefunction_t) (int top, int bottom);
 extern planefunction_t floorfunc;
 extern planefunction_t ceilingfunc_t;
 
-extern short floorclip[SCREENWIDTH];
-extern short ceilingclip[SCREENWIDTH];
+extern short floorclip[MAX_SCREENWIDTH];
+extern short ceilingclip[MAX_SCREENWIDTH];
 
-extern fixed_t yslope[SCREENHEIGHT];
-extern fixed_t distscale[SCREENWIDTH];
+extern fixed_t yslope[MAX_SCREENHEIGHT];
+extern fixed_t distscale[MAX_SCREENWIDTH];
 
 void R_InitPlanes(void);
 void R_ClearPlanes(void);
@@ -6319,8 +6322,8 @@ extern vissprite_t vsprsortedhead;
 
 // Constant arrays used for psprite clipping
 // and initializing clipping.
-extern short negonearray[SCREENWIDTH];
-extern short screenheightarray[SCREENWIDTH];
+extern short negonearray[MAX_SCREENWIDTH];
+extern short screenheightarray[MAX_SCREENWIDTH];
 
 // vars for R_DrawMaskedColumn
 extern short* mfloorclip;
@@ -7457,8 +7460,8 @@ static default_t* get_default(const char* name)
 void doom_set_resolution(int width, int height)
 {
     if (width <= 0 || height <= 0) return;
-    // SCREENWIDTH = width;
-    // SCREENHEIGHT = height;
+    SCREENWIDTH = width;
+    SCREENHEIGHT = height;
 }
 
 
@@ -7554,7 +7557,6 @@ void doom_init(int argc, char** argv, int flags)
     D_DoomMain();
 }
 
-
 void doom_update()
 {
     int now = I_GetTime();
@@ -7580,75 +7582,59 @@ void doom_force_update()
         D_DoomLoop();
 }
 
-
 const unsigned char* doom_get_framebuffer(int channels)
 {
-    int i, len;
-
-    doom_memcpy(screen_buffer, screens[0], SCREENWIDTH * SCREENHEIGHT);
+    const unsigned char* src_buffer = screens[0];
+    int src_w = 320; 
+    int src_h = 200;
+    
+    int dst_w = SCREENWIDTH;
+    int dst_h = SCREENHEIGHT;
 
     extern doom_boolean menuactive;
     extern gamestate_t gamestate; 
     extern doom_boolean automapactive;
     extern int crosshair;
 
-    // Draw crosshair
-    if (crosshair && 
-        !menuactive &&
-        gamestate == GS_LEVEL &&
-        !automapactive)
+    if (crosshair && !menuactive && gamestate == 0 && !automapactive)
     {
         int y;
         extern int setblocks;
-        if (setblocks == 11) y = SCREENHEIGHT / 2 + 8;
-        else y = SCREENHEIGHT / 2 - 8;
-        for (i = 0; i < 2; ++i)
-        {
-            screen_buffer[SCREENWIDTH / 2 - 2 - i + y * SCREENWIDTH] = 4;
-            screen_buffer[SCREENWIDTH / 2 + 2 + i + y * SCREENWIDTH] = 4;
-        }
-        for (i = 0; i < 2; ++i)
-        {
-            screen_buffer[SCREENWIDTH / 2 + (y - 2 - i) * SCREENWIDTH] = 4;
-            screen_buffer[SCREENWIDTH / 2 + (y + 2 + i) * SCREENWIDTH] = 4;
-        }
+        if (setblocks == 11) y = src_h / 2 + 8;
+        else y = src_h / 2 - 8;
+        int cx = src_w / 2;
+        screens[0][cx - 2 + y * src_w] = 4;
+        screens[0][cx - 1 + y * src_w] = 4;
+        screens[0][cx + 1 + y * src_w] = 4;
+        screens[0][cx + 2 + y * src_w] = 4;
+        screens[0][cx + (y - 2) * src_w] = 4;
+        screens[0][cx + (y - 1) * src_w] = 4;
+        screens[0][cx + (y + 1) * src_w] = 4;
+        screens[0][cx + (y + 2) * src_w] = 4;
     }
 
-    if (channels == 1)
+    if (channels == 4)
     {
-        return screen_buffer;
-    }
-    else if (channels == 3)
-    {
-        for (i = 0, len = SCREENWIDTH * SCREENHEIGHT; i < len; ++i)
+        int dy, dx;
+        for (dy = 0; dy < dst_h; ++dy)
         {
-            int k = i * 3;
-            int kpal = screen_buffer[i] * 3;
-            final_screen_buffer[k + 0] = screen_palette[kpal + 0];
-            final_screen_buffer[k + 1] = screen_palette[kpal + 1];
-            final_screen_buffer[k + 2] = screen_palette[kpal + 2];
+            int sy = (dy * src_h) / dst_h;
+            for (dx = 0; dx < dst_w; ++dx)
+            {
+                int sx = (dx * src_w) / dst_w;
+                int pal_index = src_buffer[sy * src_w + sx] * 3;
+                int dst_idx = (dy * dst_w + dx) * 4;
+                
+                final_screen_buffer[dst_idx + 0] = screen_palette[pal_index + 2];
+                final_screen_buffer[dst_idx + 1] = screen_palette[pal_index + 1];
+                final_screen_buffer[dst_idx + 2] = screen_palette[pal_index + 0];
+                final_screen_buffer[dst_idx + 3] = 255;
+            }
         }
         return final_screen_buffer;
     }
-    else if (channels == 4)
-    {
-        for (i = 0, len = SCREENWIDTH * SCREENHEIGHT; i < len; ++i)
-        {
-            int k = i * 4;
-            int kpal = screen_buffer[i] * 3;
-            final_screen_buffer[k + 0] = screen_palette[kpal + 0];
-            final_screen_buffer[k + 1] = screen_palette[kpal + 1];
-            final_screen_buffer[k + 2] = screen_palette[kpal + 2];
-            final_screen_buffer[k + 3] = 255;
-        }
-        return final_screen_buffer;
-    }
-    else
-    {
-        return 0;
-    }
+    return 0;
 }
-
 
 unsigned long doom_tick_midi()
 {
@@ -7906,8 +7892,8 @@ static int grid = 0;
 
 static int leveljuststarted = 1; // kluge until AM_LevelInit() is called
 
-static int finit_width = SCREENWIDTH;
-static int finit_height = SCREENHEIGHT - 32;
+static int finit_width = MAX_SCREENWIDTH;
+static int finit_height = MAX_SCREENHEIGHT - 32;
 
 // location of window on screen
 static int f_x;
@@ -37527,17 +37513,23 @@ byte* dc_source;
 // just for profiling 
 int dccount;
 
-int fuzzoffset[FUZZTABLE] =
-{
-    FUZZOFF,-FUZZOFF,FUZZOFF,-FUZZOFF,FUZZOFF,FUZZOFF,-FUZZOFF,
-    FUZZOFF,FUZZOFF,-FUZZOFF,FUZZOFF,FUZZOFF,FUZZOFF,-FUZZOFF,
-    FUZZOFF,FUZZOFF,FUZZOFF,-FUZZOFF,-FUZZOFF,-FUZZOFF,-FUZZOFF,
-    FUZZOFF,-FUZZOFF,-FUZZOFF,FUZZOFF,FUZZOFF,FUZZOFF,FUZZOFF,-FUZZOFF,
-    FUZZOFF,-FUZZOFF,FUZZOFF,FUZZOFF,-FUZZOFF,-FUZZOFF,FUZZOFF,
-    FUZZOFF,-FUZZOFF,-FUZZOFF,-FUZZOFF,-FUZZOFF,FUZZOFF,FUZZOFF,
-    FUZZOFF,FUZZOFF,-FUZZOFF,FUZZOFF,FUZZOFF,-FUZZOFF,FUZZOFF
-};
+int fuzzoffset[FUZZTABLE];
 
+void init_fuzzoffset(int screenwidth) {
+    int fuzztable[FUZZTABLE] = {
+        1,-1,1,-1,1,1,-1,
+        1,1,-1,1,1,1,-1,
+        1,1,1,-1,-1,-1,-1,
+        1,-1,-1,1,1,1,1,-1,
+        1,-1,1,1,-1,-1,1,
+        1,-1,-1,-1,-1,1,1,
+        1,1,-1,1,1,-1,1
+    };
+
+    for (int i = 0; i < FUZZTABLE; i++) {
+        fuzzoffset[i] = fuzztable[i] * screenwidth;
+    }
+}
 int fuzzpos = 0;
 
 byte* dc_translation;
@@ -38201,7 +38193,7 @@ int viewangletox[FINEANGLES / 2];
 // The xtoviewangleangle[] table maps a screen pixel
 // to the lowest viewangle that maps back to x ranges
 // from clipangle to -clipangle.
-angle_t xtoviewangle[SCREENWIDTH + 1];
+angle_t xtoviewangle[MAX_SCREENWIDTH + 1];
 
 fixed_t* finecosine = &finesine[FINEANGLES / 4];
 
@@ -38888,7 +38880,7 @@ void R_RenderPlayerView(player_t* player)
     NetUpdate();
 }
 #define MAXVISPLANES        128
-#define MAXOPENINGS        SCREENWIDTH*64
+#define MAXOPENINGS        MAX_SCREENWIDTH*64
 
 
 planefunction_t floorfunc;
@@ -38913,15 +38905,15 @@ short* lastopening;
 //  floorclip starts out SCREENHEIGHT
 //  ceilingclip starts out -1
 //
-short floorclip[SCREENWIDTH];
-short ceilingclip[SCREENWIDTH];
+short floorclip[MAX_SCREENWIDTH];
+short ceilingclip[MAX_SCREENWIDTH];
 
 //
 // spanstart holds the start of a plane span
 // initialized to 0 at start
 //
-int spanstart[SCREENHEIGHT];
-int spanstop[SCREENHEIGHT];
+int spanstart[MAX_SCREENHEIGHT];
+int spanstop[MAX_SCREENHEIGHT];
 
 //
 // texture mapping
@@ -38929,15 +38921,15 @@ int spanstop[SCREENHEIGHT];
 lighttable_t** planezlight;
 fixed_t planeheight;
 
-fixed_t yslope[SCREENHEIGHT];
-fixed_t distscale[SCREENWIDTH];
+fixed_t yslope[MAX_SCREENHEIGHT];
+fixed_t distscale[MAX_SCREENWIDTH];
 fixed_t basexscale;
 fixed_t baseyscale;
 
-fixed_t cachedheight[SCREENHEIGHT];
-fixed_t cacheddistance[SCREENHEIGHT];
-fixed_t cachedxstep[SCREENHEIGHT];
-fixed_t cachedystep[SCREENHEIGHT];
+fixed_t cachedheight[MAX_SCREENHEIGHT];
+fixed_t cacheddistance[MAX_SCREENHEIGHT];
+fixed_t cachedxstep[MAX_SCREENHEIGHT];
+fixed_t cachedystep[MAX_SCREENHEIGHT];
 
 
 //
@@ -40039,8 +40031,8 @@ lighttable_t** spritelights;
 
 // constant arrays
 //  used for psprite clipping and initializing clipping
-short negonearray[SCREENWIDTH];
-short screenheightarray[SCREENWIDTH];
+short negonearray[MAX_SCREENWIDTH];
+short screenheightarray[MAX_SCREENWIDTH];
 
 // variables used to look up
 //  and range check thing_t sprites patches
